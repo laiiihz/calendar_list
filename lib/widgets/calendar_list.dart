@@ -3,7 +3,7 @@ import 'package:calendar_list/utils/calendar_util.dart';
 import 'package:calendar_list/widgets/month_page.dart';
 import 'package:flutter/material.dart';
 
-typedef headerBuilder = Widget Function(
+typedef HeaderBuilder = Widget Function(
   BuildContext context,
   int year,
   int month,
@@ -19,6 +19,7 @@ class CalendarList extends StatefulWidget {
   //original listView config
   final EdgeInsetsGeometry padding;
   final ScrollPhysics physics;
+  final HeaderBuilder headerBuilder;
 
   CalendarList({
     Key key,
@@ -26,6 +27,7 @@ class CalendarList extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.physics = const BouncingScrollPhysics(),
     this.buildMonth = 12 * 20,
+    @required this.headerBuilder,
   }) : super(key: key);
 
   @override
@@ -59,7 +61,7 @@ class _CalendarListState extends State<CalendarList> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text('$year\年$month\月'),
+            widget.headerBuilder(context, year, month),
             Divider(height: 0.5),
             MonthPage(
               year: year,
