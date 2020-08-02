@@ -1,16 +1,30 @@
+import 'dart:async';
+import 'dart:isolate';
+
 import 'package:calendar_list/models/date_model.dart';
 import 'package:calendar_list/models/month_page_config.dart';
 import 'package:calendar_list/utils/calendar_util.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+typedef CalendarItemBuilder = Widget Function(DateModel model);
+
 class MonthPage extends StatefulWidget {
   final int year;
   final int month;
-  final double itemExtent;
+  final Duration buildDelay;
+  final int prefixDays;
+  final CalendarItemBuilder calendarItemBuilder;
 
-  MonthPage({Key key, this.year, this.month, this.itemExtent})
-      : super(key: key);
+  MonthPage({
+    Key key,
+    @required this.year,
+    @required this.month,
+    @required this.buildDelay,
+    this.prefixDays = 0,
+    @required this.calendarItemBuilder,
+  })  : assert(calendarItemBuilder != null, "必须添加calendarItemBuilder"),
+        super(key: key);
 
   @override
   _MonthPageState createState() => _MonthPageState();
@@ -19,16 +33,24 @@ class MonthPage extends StatefulWidget {
 class _MonthPageState extends State<MonthPage> {
   List<DateModel> models = [];
   MonthPageConfig monthPageConfig = MonthPageConfig();
+  Isolate _isolate;
+  Timer _timer;
+  bool _buildDone = false;
 
   @override
   void initState() {
     super.initState();
-    getModels();
+    //延迟创建isolate
+    //列表快速滑动会导致ioslate创建频繁，导致UI卡顿
+    _timer = Timer(widget.buildDelay, () => getModelsIsolate());
   }
 
   @override
   void dispose() {
     super.dispose();
+    _timer?.cancel();
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
   }
 
   @override
@@ -36,35 +58,54 @@ class _MonthPageState extends State<MonthPage> {
     final itemWidth = MediaQuery.of(context).size.width / 7;
     return Container(
       height: monthPageConfig.getMonthPageHeight(),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7,
-          crossAxisSpacing: monthPageConfig.horizontalPadding,
-          mainAxisSpacing: monthPageConfig.verticalPadding,
-          childAspectRatio:
-              itemWidth / monthPageConfig.getMonthPageHorizontal(),
+      child: AnimatedOpacity(
+        opacity: _buildDone ? 1 : 0,
+        duration: Duration(milliseconds: 300),
+        child: GridView.builder(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            crossAxisSpacing: monthPageConfig.horizontalPadding,
+            mainAxisSpacing: monthPageConfig.verticalPadding,
+            childAspectRatio:
+                itemWidth / monthPageConfig.getMonthPageHorizontal(),
+          ),
+          itemBuilder: (BuildContext context, int index) {
+            if (index < widget.prefixDays) {
+              return SizedBox();
+            } else {
+              final DateModel dateModel = models[index - widget.prefixDays];
+              return widget.calendarItemBuilder(dateModel);
+            }
+          },
+          itemCount: models.length + widget.prefixDays,
         ),
-        itemBuilder: (BuildContext context, int index) {
-          return Center(
-            child: Text(models[index].solar.solarDay.toString()),
-          );
-        },
-        itemCount: models.length,
       ),
     );
   }
 
-  Future getModels() async {
-    models = await compute(initCalendarModel, {
+  Future getModelsIsolate() async {
+    ReceivePort receivePort = ReceivePort();
+
+    _isolate = await Isolate.spawn(initCalendarModelsIsolate, {
+      'port': receivePort.sendPort,
       'year': widget.year,
       'month': widget.month,
     });
-    if (mounted) setState(() {});
-  }
 
-  static Future<List<DateModel>> initCalendarModel(Map map) async {
-    return CalendarUtil.getMonthDateModels(map['year'], map['month']);
+    receivePort.listen((message) {
+      // return message;
+      models = message;
+      _buildDone = true;
+      if (mounted) setState(() {});
+    });
   }
+}
+
+initCalendarModelsIsolate(Map map) {
+  List<DateModel> models =
+      CalendarUtil.getMonthDateModels(map['year'], map['month']);
+  (map['port'] as SendPort).send(models);
 }

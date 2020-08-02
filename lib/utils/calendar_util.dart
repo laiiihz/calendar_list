@@ -61,4 +61,13 @@ class CalendarUtil {
     } else
       return year + (index - (12 - month + 1)) ~/ 12 + 1;
   }
+
+  //通过index获取月份
+  static int getMonthByIndex(int month, int index) {
+    if (index < (12 - month + 1)) {
+      return month + index;
+    } else {
+      return (index - (12 - month + 1)) % 12 + 1;
+    }
+  }
 }

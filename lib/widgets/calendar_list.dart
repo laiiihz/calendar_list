@@ -3,10 +3,17 @@ import 'package:calendar_list/utils/calendar_util.dart';
 import 'package:calendar_list/widgets/month_page.dart';
 import 'package:flutter/material.dart';
 
+typedef headerBuilder = Widget Function(
+  BuildContext context,
+  int year,
+  int month,
+);
+
 class CalendarList extends StatefulWidget {
+  ///日历控制器
   final CalendarListController controller;
-  final double itemExtent;
-  final int cachedMonth;
+
+  ///构建月份个数
   final int buildMonth;
 
   //original listView config
@@ -16,8 +23,6 @@ class CalendarList extends StatefulWidget {
   CalendarList({
     Key key,
     @required this.controller,
-    this.itemExtent = 20,
-    this.cachedMonth = 6,
     this.padding = EdgeInsets.zero,
     this.physics = const BouncingScrollPhysics(),
     this.buildMonth = 12 * 20,
@@ -39,18 +44,29 @@ class _CalendarListState extends State<CalendarList> {
       physics: widget.physics,
       padding: widget.padding,
       cacheExtent: widget.controller.monthPageConfig.getMonthPageHeight() *
-          widget.cachedMonth,
+          widget.controller.performanceConfig.buildCacheMonth,
       itemBuilder: (BuildContext context, int index) {
+        final year = CalendarUtil.getYearByIndex(
+          widget.controller.minYear,
+          widget.controller.minMonth,
+          index,
+        );
+        final month = CalendarUtil.getMonthByIndex(
+          widget.controller.minMonth,
+          index,
+        );
+        final week = DateTime(year, month, 1).weekday;
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(CalendarUtil.getYearByIndex(widget.controller.minYear,
-                    widget.controller.minMonth, index)
-                .toString()),
+            Text('$year\年$month\月'),
+            Divider(height: 0.5),
             MonthPage(
-              year: 2020,
-              month: 8,
-              itemExtent: widget.itemExtent,
+              year: year,
+              month: month,
+              buildDelay: widget.controller.performanceConfig.buildDelay,
+              prefixDays: week == 7 ? 0 : week,
+              calendarItemBuilder: widget.controller.calendarItemBuilder,
             ),
           ],
         );

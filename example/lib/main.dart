@@ -1,4 +1,5 @@
 import 'package:calendar_list/controller/calendar_list_controller.dart';
+import 'package:calendar_list/models/date_model.dart';
 import 'package:calendar_list/widgets/calendar_list.dart';
 import 'package:flutter/material.dart';
 
@@ -47,7 +48,10 @@ class _CalendarTestViewState extends State<CalendarTestView> {
     super.initState();
     _controller = CalendarListController()
       ..minYear = 2020
-      ..minMonth = 8;
+      ..minMonth = 8
+      ..calendarItemBuilder = (DateModel model) {
+        return Text(model.solar.solarDay.toString());
+      };
   }
 
   @override
