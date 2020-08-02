@@ -2,7 +2,7 @@ name: calendar_list
 description: A new Flutter package.
 version: 0.0.1
 author: laiiihz
-homepage: https://github.com/laiiihz/calendar_view
+homepage: https://github.com/laiiihz/calendar_list
 
 environment:
   sdk: ">=2.7.0 <3.0.0"
